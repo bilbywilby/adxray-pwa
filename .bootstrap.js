@@ -77,15 +77,7 @@ function updateWranglerJsonc() {
 }
 
 function runSetupCommands() {
-    const commands = [
-    "bun add react-dropzone@^14.2.3",
-    "bun add tesseract.js@^5.1.1",
-    "bun install tesseract.js react-dropzone",
-    "bun install lucide-react",
-    "bun install pdfjs-dist zod react-dropzone",
-    "bun install framer-motion lucide-react clsx tailwind-merge zustand",
-    "bun install date-fns lucide-react framer-motion sonner"
-];
+    const commands = [];
     
     if (commands.length === 0) {
         console.log('⊘ No setup commands to run');
