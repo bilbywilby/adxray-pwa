@@ -1,101 +1,92 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Camera, FlipHorizontal, X, Image as ImageIcon, Zap } from 'lucide-react';
-import { resizeImage } from '@/lib/ad-utils';
-import { useAdXRayStore } from '@/lib/ad-analysis-store';
+import React, { useCallback, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { Camera, Upload, Search, Loader2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { resizeImage, extractTextFromImage } from '@/lib/ad-utils';
+import { cn } from '@/lib/utils';
 interface AdScannerProps {
-  onCapture: (b64: string) => void;
-  onBack: () => void;
+  onScanComplete: (text: string) => void;
+  isScanning: boolean;
 }
-export function AdScanner({ onCapture, onBack }: AdScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [hasCamera, setHasCamera] = useState(true);
-  const setError = useAdXRayStore(s => s.setError);
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        setHasCamera(false);
-      }
-    }
-    startCamera();
-    return () => {
-      stream?.getTracks().forEach(t => t.stop());
-    };
-  }, [facingMode]);
-  const captureFrame = async () => {
-    const video = videoRef.current;
-    if (!video) return;
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0);
-      const rawB64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-      const optimizedB64 = await resizeImage(rawB64);
-      onCapture(optimizedB64);
-    } catch (err: any) {
-      setError(err.message || 'CAPTURE_FAILED');
-    }
-  };
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+export function AdScanner({ onScanComplete, isScanning }: AdScannerProps) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
     if (!file) return;
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const rawB64 = (reader.result as string).split(',')[1];
-        const optimizedB64 = await resizeImage(rawB64);
-        onCapture(optimizedB64);
-      };
-      reader.readAsDataURL(file);
-    } catch (err: any) {
-      setError(err.message || 'FILE_UPLOAD_FAILED');
+      const resized = await resizeImage(file);
+      setPreview(resized);
+      const text = await extractTextFromImage(resized, (p) => setProgress(Math.round(p * 100)));
+      onScanComplete(text);
+    } catch (err) {
+      console.error(err);
     }
+  }, [onScanComplete]);
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': [] },
+    multiple: false,
+    disabled: isScanning
+  });
+  const clear = () => {
+    setPreview(null);
+    setProgress(0);
   };
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      <div className="absolute top-6 left-6 right-6 flex justify-between z-10">
-        <button onClick={onBack} className="p-3 bg-black/50 backdrop-blur-md rounded-full border border-white/20 text-white">
-          <X size={24} />
-        </button>
-        <button onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')} className="p-3 bg-black/50 backdrop-blur-md rounded-full border border-white/20 text-white">
-          <FlipHorizontal size={24} />
-        </button>
-      </div>
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-        {hasCamera ? (
-          <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
+    <div className="w-full max-w-xl mx-auto space-y-6">
+      <div
+        {...getRootProps()}
+        className={cn(
+          "relative border-4 border-dashed border-black p-8 text-center cursor-pointer transition-all bg-white/50 hover:bg-white/80",
+          isDragActive && "border-primary bg-primary/5",
+          preview && "border-solid border-3 p-2"
+        )}
+      >
+        <input {...getInputProps()} />
+        {preview ? (
+          <div className="relative aspect-video w-full overflow-hidden border-2 border-black">
+            <img src={preview} alt="Preview" className="w-full h-full object-contain" />
+            <button 
+              onClick={(e) => { e.stopPropagation(); clear(); }}
+              className="absolute top-2 right-2 p-1 bg-black text-white rounded-none hover:bg-gray-800"
+            >
+              <X size={20} />
+            </button>
+          </div>
         ) : (
-          <div className="p-8 text-center space-y-6">
-            <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mx-auto">
-              <ImageIcon className="text-gray-500" size={32} />
+          <div className="py-12 flex flex-col items-center gap-4">
+            <div className="p-4 bg-[#FFD23F] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <Camera size={48} />
             </div>
-            <p className="text-gray-400 font-mono text-sm uppercase tracking-widest">Camera access restricted</p>
+            <div>
+              <p className="text-xl font-bold uppercase">Feed the X-Ray</p>
+              <p className="text-muted-foreground">Drop ad screenshot or click to scan</p>
+            </div>
           </div>
         )}
-        <div className="absolute inset-0 border-[20px] border-black/40 pointer-events-none" />
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-lime-accent/30 shadow-[0_0_15px_rgba(200,241,53,0.5)] animate-scan-line" />
+        {isScanning && (
+          <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-6 z-10">
+            <Loader2 className="w-12 h-12 animate-spin mb-4" />
+            <p className="text-lg font-bold uppercase tracking-widest">Developing Film...</p>
+            <div className="w-full max-w-xs h-4 border-2 border-black mt-2 bg-gray-100 overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300" 
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs mt-2 font-mono">{progress}% Complete</p>
+          </div>
+        )}
       </div>
-      <div className="h-40 bg-black flex items-center justify-between px-10 border-t border-white/10">
-        <label className="cursor-pointer p-4 hover:bg-white/5 rounded-full transition-colors">
-          <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
-          <ImageIcon className="text-white/70" size={28} />
-        </label>
-        <button onClick={captureFrame} className="group relative w-20 h-20 flex items-center justify-center">
-          <div className="absolute inset-0 border-4 border-white rounded-full scale-110 group-active:scale-95 transition-transform" />
-          <div className="w-16 h-16 bg-lime-accent rounded-full shadow-[0_0_20px_rgba(200,241,53,0.4)]" />
-        </button>
-        <div className="p-4 opacity-50">
-          <Zap className="text-white" size={28} />
-        </div>
+      <div className="flex gap-4 justify-center">
+        <Button 
+          variant="outline" 
+          className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all uppercase font-bold"
+          onClick={() => document.querySelector('input')?.click()}
+        >
+          <Upload className="mr-2 h-4 w-4" /> Upload
+        </Button>
       </div>
     </div>
   );
