@@ -1,3 +1,4 @@
+import Tesseract from 'tesseract.js';
 export async function resizeImage(file: File, maxWidth = 1024): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -15,9 +16,7 @@ export async function resizeImage(file: File, maxWidth = 1024): Promise<string> 
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        // Return base64 without the data:image/jpeg;base64, prefix for easier worker handling
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        resolve(dataUrl.split(',')[1]);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.onerror = reject;
       img.src = e.target?.result as string;
@@ -26,47 +25,49 @@ export async function resizeImage(file: File, maxWidth = 1024): Promise<string> 
     reader.readAsDataURL(file);
   });
 }
+export async function extractTextFromImage(imagePath: string, onProgress?: (progress: number) => void): Promise<string> {
+  try {
+    const { data: { text } } = await Tesseract.recognize(
+      imagePath,
+      'eng',
+      {
+        logger: m => {
+          if (m.status === 'recognizing' && onProgress) {
+            onProgress(m.progress);
+          }
+        }
+      }
+    );
+    return text;
+  } catch (error) {
+    console.error('OCR Error:', error);
+    throw new Error('Failed to extract text from image');
+  }
+}
 export interface AdAnalysis {
-  detected: {
-    productName: string;
-    company: string;
-    category: string;
-    emoji: string;
-    confidence: number;
-  };
-  whyThisAd: {
-    summary: string;
-    insights: Array<{ label: string; value: string; sentiment: 'negative' | 'neutral' | 'positive' }>;
-    tactics: string[];
-  };
-  marketComparison: {
-    advertised: { name: string; price: string; quality: string; deal: string };
-    alternatives: Array<{ name: string; emoji: string; price: string; quality: string; deal: string; reason: string }>;
-    verdict: 'bad' | 'ok' | 'good';
-    verdictTitle: string;
-    verdictText: string;
-  };
+  detected: string;
+  trap: string;
+  verdict: string;
+  price_comparison: string;
 }
 export function parseAnalysisResponse(content: string): AdAnalysis {
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+  // Try to find JSON block first
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
       return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.warn("Failed to parse JSON match, falling back to regex", e);
     }
-    throw new Error("No JSON found in response");
-  } catch (e) {
-    console.error("Parse Error:", e);
-    // Return a structured empty state instead of crashing
-    return {
-      detected: { productName: "Unknown", company: "Unknown", category: "Unidentified", emoji: "❓", confidence: 0 },
-      whyThisAd: { summary: "Analysis failed to parse properly.", insights: [], tactics: [] },
-      marketComparison: { 
-        advertised: { name: "N/A", price: "N/A", quality: "N/A", deal: "N/A" },
-        alternatives: [],
-        verdict: 'ok',
-        verdictTitle: "UNCERTAIN",
-        verdictText: "Try a clearer scan."
-      }
-    };
   }
+  // Fallback regex parsing for the 3 sections
+  const detected = content.match(/DETECTED:?([\s\S]*?)(?=THE TRAP|VERDICT|$)/i)?.[1]?.trim() || "Analysis failed.";
+  const trap = content.match(/THE TRAP:?([\s\S]*?)(?=VERDICT|$)/i)?.[1]?.trim() || "Tactics hidden.";
+  const verdict = content.match(/VERDICT:?([\s\S]*)/i)?.[1]?.trim() || "Avoid until certain.";
+  return {
+    detected,
+    trap,
+    verdict,
+    price_comparison: ""
+  };
 }
