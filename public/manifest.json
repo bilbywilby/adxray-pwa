@@ -1,11 +1,11 @@
 {
   "name": "AdXRay",
   "short_name": "AdXRay",
-  "description": "Deep scan advertisements for predatory tactics.",
+  "description": "Deep scan advertisements for predatory tactics and manipulation.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "theme_color": "#c8f135",
   "orientation": "portrait",
   "icons": [
     {

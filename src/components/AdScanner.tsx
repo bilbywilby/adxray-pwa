@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, FlipHorizontal, X, Image as ImageIcon } from 'lucide-react';
+import { Camera, FlipHorizontal, X, Image as ImageIcon, Zap } from 'lucide-react';
+import { resizeImage } from '@/lib/ad-utils';
+import { useAdXRayStore } from '@/lib/ad-analysis-store';
 interface AdScannerProps {
   onCapture: (b64: string) => void;
   onBack: () => void;
@@ -8,95 +10,84 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [hasCamera, setHasCamera] = useState(true);
+  const setError = useAdXRayStore(s => s.setError);
   useEffect(() => {
-    const videoEl = videoRef.current;
-    let cancelled = false;
     let stream: MediaStream | null = null;
     async function startCamera() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1920 } }
+          video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
         });
-        if (!cancelled && videoEl) {
-          videoEl.srcObject = stream;
-          videoEl.play();
-        } else if (stream) {
-          stream.getTracks().forEach(track => track.stop());
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
         }
       } catch (err) {
-        console.error("Camera Error:", err);
         setHasCamera(false);
       }
     }
     startCamera();
     return () => {
-      cancelled = true;
-      if (videoEl?.srcObject) {
-        const currentStream = videoEl.srcObject as MediaStream;
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      stream?.getTracks().forEach(t => t.stop());
     };
   }, [facingMode]);
-  const captureFrame = () => {
+  const captureFrame = async () => {
     const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight || video.readyState !== 4) return;
+    if (!video) return;
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx?.drawImage(video, 0, 0);
-    const b64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-    onCapture(b64);
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    const rawB64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+    const optimizedB64 = await resizeImage(rawB64);
+    onCapture(optimizedB64);
   };
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const b64 = (reader.result as string).split(',')[1];
-        onCapture(b64);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const rawB64 = (reader.result as string).split(',')[1];
+      const optimizedB64 = await resizeImage(rawB64);
+      onCapture(optimizedB64);
+    };
+    reader.readAsDataURL(file);
   };
   return (
-    <div className="relative h-full flex flex-col bg-black">
+    <div className="fixed inset-0 bg-black z-50 flex flex-col">
       <div className="absolute top-6 left-6 right-6 flex justify-between z-10">
-        <button onClick={onBack} className="p-2 bg-black/50 rounded-full border border-white/10"><X /></button>
-        <button onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')} className="p-2 bg-black/50 rounded-full border border-white/10"><FlipHorizontal /></button>
+        <button onClick={onBack} className="p-3 bg-black/50 backdrop-blur-md rounded-full border border-white/20 text-white">
+          <X size={24} />
+        </button>
+        <button onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')} className="p-3 bg-black/50 backdrop-blur-md rounded-full border border-white/20 text-white">
+          <FlipHorizontal size={24} />
+        </button>
       </div>
-      <div className="relative flex-1 bg-black flex items-center justify-center">
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center">
         {hasCamera ? (
-          <>
-            <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-[hsl(var(--lime-accent)/0.4)] rounded-3xl" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-[hsl(var(--lime-accent)/0.2)] animate-scan-line" />
-            </div>
-          </>
+          <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
         ) : (
-          <div className="p-8 text-center space-y-4">
-            <ImageIcon className="w-12 h-12 mx-auto text-gray-600" />
-            <p className="text-gray-400 font-mono text-xs">NO CAMERA STREAM DETECTED</p>
-            <label className="block w-full py-4 bg-[#1a1a1a] border border-[#333] cursor-pointer">
-              <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
-              UPLOAD FROM STORAGE
-            </label>
+          <div className="p-8 text-center space-y-6">
+            <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mx-auto">
+              <ImageIcon className="text-gray-500" size={32} />
+            </div>
+            <p className="text-gray-400 font-mono text-sm uppercase tracking-widest">Camera access restricted</p>
           </div>
         )}
+        <div className="absolute inset-0 border-[20px] border-black/40 pointer-events-none" />
+        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-lime-accent/30 shadow-[0_0_15px_rgba(200,241,53,0.5)] animate-scan-line" />
       </div>
-      <div className="h-32 bg-black flex items-center justify-around px-8">
-        <label className="cursor-pointer">
+      <div className="h-40 bg-black flex items-center justify-between px-10 border-t border-white/10">
+        <label className="cursor-pointer p-4 hover:bg-white/5 rounded-full transition-colors">
           <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
-          <ImageIcon className="text-white/50" />
+          <ImageIcon className="text-white/70" size={28} />
         </label>
-        <button onClick={captureFrame} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center active:scale-90 transition-transform">
-          <div className="w-16 h-16 rounded-full bg-[hsl(var(--lime-accent))]" />
+        <button onClick={captureFrame} className="group relative w-20 h-20 flex items-center justify-center">
+          <div className="absolute inset-0 border-4 border-white rounded-full scale-110 group-active:scale-95 transition-transform" />
+          <div className="w-16 h-16 bg-lime-accent rounded-full shadow-[0_0_20px_rgba(200,241,53,0.4)]" />
         </button>
-        <div className="w-6" />
+        <div className="p-4 opacity-50">
+          <Zap className="text-white" size={28} />
+        </div>
       </div>
     </div>
   );
