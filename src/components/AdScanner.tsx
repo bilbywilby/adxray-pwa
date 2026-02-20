@@ -1,94 +1,88 @@
-import React, { useCallback, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Camera, Upload, Search, Loader2, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { resizeImage, extractTextFromImage } from '@/lib/ad-utils';
-import { cn } from '@/lib/utils';
+import React, { useRef, useState, useEffect } from 'react';
+import { Camera, FlipHorizontal, X, Image as ImageIcon } from 'lucide-react';
 interface AdScannerProps {
-  onScanComplete: (text: string) => void;
-  isScanning: boolean;
-  onImageCapture?: (dataUrl: string) => void;
+  onCapture: (b64: string) => void;
+  onBack: () => void;
 }
-export function AdScanner({ onScanComplete, isScanning }: AdScannerProps) {
-  const [preview, setPreview] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
-    try {
-      const resized = await resizeImage(file);
-      setPreview(resized);
-      if (onImageCapture) onImageCapture(resized);
-      const text = await extractTextFromImage(resized, (p) => setProgress(Math.round(p * 100)));
-      onScanComplete(text);
-    } catch (err) {
-      console.error(err);
+export function AdScanner({ onCapture, onBack }: AdScannerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [hasCamera, setHasCamera] = useState(true);
+  useEffect(() => {
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1920 } }
+        });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch (err) {
+        console.error("Camera Error:", err);
+        setHasCamera(false);
+      }
     }
-  }, [onScanComplete]);
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { 'image/*': [] },
-    multiple: false,
-    disabled: isScanning
-  });
-  const clear = () => {
-    setPreview(null);
-    setProgress(0);
+    startCamera();
+    return () => {
+      const stream = videoRef.current?.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
+    };
+  }, [facingMode]);
+  const captureFrame = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx?.drawImage(video, 0, 0);
+    const b64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+    onCapture(b64);
+  };
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = (reader.result as string).split(',')[1];
+        onCapture(b64);
+      };
+      reader.readAsDataURL(file);
+    }
   };
   return (
-    <div className="w-full max-w-xl mx-auto space-y-6">
-      <div
-        {...getRootProps()}
-        className={cn(
-          "relative border-4 border-dashed border-black p-8 text-center cursor-pointer transition-all bg-white/50 hover:bg-white/80",
-          isDragActive && "border-primary bg-primary/5",
-          preview && "border-solid border-3 p-2"
-        )}
-      >
-        <input {...getInputProps()} />
-        {preview ? (
-          <div className="relative aspect-video w-full overflow-hidden border-2 border-black">
-            <img src={preview} alt="Preview" className="w-full h-full object-contain" />
-            <button 
-              onClick={(e) => { e.stopPropagation(); clear(); }}
-              className="absolute top-2 right-2 p-1 bg-black text-white rounded-none hover:bg-gray-800"
-            >
-              <X size={20} />
-            </button>
-          </div>
+    <div className="relative h-full flex flex-col bg-black">
+      <div className="absolute top-6 left-6 right-6 flex justify-between z-10">
+        <button onClick={onBack} className="p-2 bg-black/50 rounded-full border border-white/10"><X /></button>
+        <button onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')} className="p-2 bg-black/50 rounded-full border border-white/10"><FlipHorizontal /></button>
+      </div>
+      <div className="relative flex-1 bg-black flex items-center justify-center">
+        {hasCamera ? (
+          <>
+            <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-lime-accent/40 rounded-3xl" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-lime-accent/20 animate-scan-line" />
+            </div>
+          </>
         ) : (
-          <div className="py-12 flex flex-col items-center gap-4">
-            <div className="p-4 bg-[#FFD23F] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <Camera size={48} />
-            </div>
-            <div>
-              <p className="text-xl font-bold uppercase">Feed the X-Ray</p>
-              <p className="text-muted-foreground">Drop ad screenshot or click to scan</p>
-            </div>
-          </div>
-        )}
-        {isScanning && (
-          <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-6 z-10">
-            <Loader2 className="w-12 h-12 animate-spin mb-4" />
-            <p className="text-lg font-bold uppercase tracking-widest">Developing Film...</p>
-            <div className="w-full max-w-xs h-4 border-2 border-black mt-2 bg-gray-100 overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-300" 
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-xs mt-2 font-mono">{progress}% Complete</p>
+          <div className="p-8 text-center space-y-4">
+            <ImageIcon className="w-12 h-12 mx-auto text-gray-600" />
+            <p className="text-gray-400 font-mono text-xs">NO CAMERA STREAM DETECTED</p>
+            <label className="block w-full py-4 bg-[#1a1a1a] border border-[#333] cursor-pointer">
+              <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
+              UPLOAD FROM STORAGE
+            </label>
           </div>
         )}
       </div>
-      <div className="flex gap-4 justify-center">
-        <Button 
-          variant="outline" 
-          className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all uppercase font-bold"
-          onClick={() => document.querySelector('input')?.click()}
-        >
-          <Upload className="mr-2 h-4 w-4" /> Upload
-        </Button>
+      <div className="h-32 bg-black flex items-center justify-around px-8">
+        <label className="cursor-pointer">
+          <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
+          <ImageIcon className="text-white/50" />
+        </label>
+        <button onClick={captureFrame} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center active:scale-90 transition-transform">
+          <div className="w-16 h-16 rounded-full bg-lime-accent" />
+        </button>
+        <div className="w-6" />
       </div>
     </div>
   );
