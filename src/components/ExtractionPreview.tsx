@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useExtractionStore } from '@/lib/extraction-store';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Database, Copy, CheckCircle2, ShieldCheck, RefreshCcw, Activity } from 'lucide-react';
+import { Database, Copy, CheckCircle2, ShieldCheck, RefreshCcw, Activity, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 export function ExtractionPreview() {
@@ -16,7 +16,7 @@ export function ExtractionPreview() {
       keys.forEach((key, index) => {
         setTimeout(() => {
           setTypedFields(prev => [...prev, key]);
-        }, index * 150);
+        }, index * 100);
       });
     }
   }, [status, structuredData]);
@@ -27,6 +27,7 @@ export function ExtractionPreview() {
   };
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       className="w-full space-y-8"
@@ -43,22 +44,22 @@ export function ExtractionPreview() {
                 <CheckCircle2 className="w-3 h-3" /> Status: Verified
               </span>
               <span className="text-[10px] font-mono text-gray-600">|</span>
-              <span className="text-[10px] font-mono text-gray-500 uppercase">Latency: 1.2s</span>
+              <span className="text-[10px] font-mono text-gray-500 uppercase">Engine: Gemini_Flash</span>
             </div>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full md:w-auto">
           <Button
             variant="outline"
             onClick={copyToClipboard}
-            className="border-[#333] hover:border-primary hover:bg-primary/10 rounded-none font-display font-bold uppercase"
+            className="flex-1 md:flex-none border-[#333] hover:border-primary hover:bg-primary/10 rounded-none font-display font-bold uppercase"
           >
             <Copy className="w-4 h-4 mr-2" />
             Copy Payload
           </Button>
           <Button
             onClick={reset}
-            className="bg-white text-black hover:bg-gray-200 rounded-none font-display font-bold uppercase px-6"
+            className="flex-1 md:flex-none bg-white text-black hover:bg-gray-200 rounded-none font-display font-bold uppercase px-6"
           >
             <RefreshCcw className="w-4 h-4 mr-2" />
             New Scan
@@ -68,13 +69,14 @@ export function ExtractionPreview() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Field Monitor */}
         <div className="bg-[#111] border-2 border-[#222] p-8 space-y-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-3 bg-primary/5 border-l border-b border-[#222] font-mono text-[9px] text-gray-600">MONITOR_v4.2</div>
+          <div className="absolute top-0 right-0 p-3 bg-primary/5 border-l border-b border-[#222] font-mono text-[9px] text-gray-600">MONITOR_v5.0</div>
           <div className="space-y-6">
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {Object.entries(structuredData).map(([key, value]) => (
                 key !== 'metadata' && typedFields.includes(key) && (
-                  <motion.div 
+                  <motion.div
                     key={key}
+                    layout
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     className="flex flex-col gap-1 border-l-2 border-primary/40 pl-4 py-1"
@@ -86,7 +88,6 @@ export function ExtractionPreview() {
               ))}
             </AnimatePresence>
           </div>
-          {/* Validation Box */}
           <div className="pt-6 mt-8 border-t border-[#222] flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -106,9 +107,8 @@ export function ExtractionPreview() {
         </div>
         {/* Code View / Metadata Area */}
         <div className="flex flex-col gap-6">
-          {/* Metadata Insight */}
           {structuredData.metadata && (
-            <div className="bg-[#0d0d0d] border border-primary/20 p-6 space-y-4">
+            <motion.div layout className="bg-[#0d0d0d] border border-primary/20 p-6 space-y-4">
               <div className="flex items-center gap-2 font-display text-lg font-bold text-primary italic uppercase">
                 <Activity className="w-4 h-4" /> Neural Anomalies
               </div>
@@ -119,14 +119,10 @@ export function ExtractionPreview() {
                     {a}
                   </li>
                 ))}
-                {(!structuredData.metadata.anomalies || structuredData.metadata.anomalies.length === 0) && (
-                  <li className="text-[10px] font-mono text-gray-600 uppercase">No anomalies detected in source.</li>
-                )}
               </ul>
-            </div>
+            </motion.div>
           )}
-          {/* Raw Payload View */}
-          <div className="bg-black border border-[#222] p-8 flex-1 relative">
+          <motion.div layout className="bg-black border border-[#222] p-8 flex-1 relative">
             <div className="font-mono text-[10px] text-gray-600 uppercase tracking-[0.3em] mb-6 flex justify-between items-center">
               <span>RAW_PAYLOAD.JSON</span>
               <span className="w-2 h-2 bg-red-500 rounded-full animate-blink" />
@@ -134,8 +130,15 @@ export function ExtractionPreview() {
             <pre className="font-mono text-[12px] text-primary/80 overflow-auto max-h-[350px] no-scrollbar leading-relaxed">
               {JSON.stringify(structuredData, null, 2)}
             </pre>
-          </div>
+          </motion.div>
         </div>
+      </div>
+      {/* Report Specific Disclaimer */}
+      <div className="flex items-center justify-center gap-2 py-4 border-t border-white/5 opacity-40">
+        <AlertTriangle className="w-3 h-3 text-yellow-500" />
+        <span className="text-[8px] font-mono text-gray-500 uppercase tracking-widest">
+          Engine Limit Disclaimer: Processing speed reflects shared rate availability.
+        </span>
       </div>
     </motion.div>
   );
