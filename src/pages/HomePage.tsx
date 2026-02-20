@@ -1,175 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { AdScanner } from '@/components/AdScanner';
-import { AnalysisResult } from '@/components/AnalysisResult';
-import { Toaster, toast } from '@/components/ui/sonner';
-import { AdAnalysis } from '@/lib/ad-utils';
-import { Activity, ArrowLeft, Archive } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useHistoryStore, ScanRecord } from '@/lib/history-store';
-type ScreenState = 'splash' | 'capture' | 'processing' | 'results' | 'error';
+import React from 'react';
+import { PDFUploader } from '@/components/PDFUploader';
+import { ExtractionPreview } from '@/components/ExtractionPreview';
+import { useExtractionStore } from '@/lib/extraction-store';
+import { Toaster } from '@/components/ui/sonner';
+import { Terminal, Archive, ShieldInfo } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 export function HomePage() {
-  const [screen, setScreen] = useState<ScreenState>('splash');
-  const [imageB64, setImageB64] = useState<string | null>(null);
-  const [results, setResults] = useState<AdAnalysis | null>(null);
-  const [step, setStep] = useState(0);
-  const location = useLocation();
+  const status = useExtractionStore(s => s.status);
+  const error = useExtractionStore(s => s.error);
   const navigate = useNavigate();
-  const addScan = useHistoryStore(s => s.addScan);
-  const steps = [
-    "Decrypting visual stream...", 
-    "Identifying product footprint...", 
-    "Cross-referencing market data...", 
-    "Evaluating competitor threats...", 
-    "Finalizing verdict..."
-  ];
-  useEffect(() => {
-    const state = location.state as { selectedScan?: ScanRecord };
-    if (state?.selectedScan) {
-      setImageB64(state.selectedScan.imagePreview.replace('data:image/jpeg;base64,', ''));
-      setResults(state.selectedScan.analysis);
-      setScreen('results');
-      // Clear state so it doesn't re-trigger on refresh
-      window.history.replaceState({}, document.title);
-    }
-  }, [location]);
-  const handleCapture = async (b64: string) => {
-    setImageB64(b64);
-    setScreen('processing');
-    const timer = setInterval(() => {
-      setStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
-    }, 800);
-    try {
-      const response = await fetch('/api/ad-analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageB64: b64 })
-      });
-      const res = await response.json();
-      if (res.success) {
-        setResults(res.data);
-        addScan({
-          imagePreview: `data:image/jpeg;base64,${b64}`,
-          analysis: res.data,
-          extractedText: "" // Text extraction is handled server-side now
-        });
-        setTimeout(() => {
-          clearInterval(timer);
-          setScreen('results');
-        }, 1200);
-      } else {
-        throw new Error(res.error);
-      }
-    } catch (err) {
-      clearInterval(timer);
-      setScreen('error');
-      toast.error("Analysis failed. Signal lost.");
-    }
-  };
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-lime-accent selection:text-black overflow-hidden flex flex-col items-center">
-      <nav className="w-full max-w-[430px] p-6 flex justify-between items-center z-50">
-        <div className="flex items-center gap-1 font-condensed text-2xl font-black">
-          AD<span className="text-lime-accent">X</span>RAY
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-primary selection:text-black">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center z-50">
+        <div className="flex items-center gap-2 font-display text-3xl font-black">
+          DOC<span className="text-primary italic">XRAY</span>
+          <div className="bg-primary px-1 text-[10px] font-bold text-black uppercase ml-1">BETA</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-4">
           <button 
             onClick={() => navigate('/history')}
-            className="bg-[#1a1a1a] p-2 border border-[#333] hover:border-lime-accent transition-colors"
+            className="flex items-center gap-2 px-3 py-1 border border-[#333] hover:border-primary transition-colors bg-[#111]"
           >
-            <Archive className="w-4 h-4 text-lime-accent" />
+            <Archive className="w-4 h-4 text-primary" />
+            <span className="font-display text-sm font-bold uppercase">Vault</span>
           </button>
-          <div className="bg-[#1a1a1a] px-2 py-0.5 text-[10px] font-bold border border-[#333] flex items-center text-gray-500 uppercase">v3.0</div>
         </div>
       </nav>
-      <main className="w-full max-w-[430px] flex-1 relative flex flex-col">
-        <AnimatePresence mode="wait">
-          {screen === 'splash' && (
-            <motion.div
-              key="splash"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col p-8 justify-center items-center text-center space-y-12"
-            >
-              <div className="space-y-4">
-                <h2 className="text-5xl font-condensed font-black leading-none">SEE THROUGH EVERY AD.</h2>
-                <p className="text-gray-400 font-medium max-w-[280px]">The truth is hidden in the pixels. Reveal predatory marketing with one scan.</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16">
+        <div className="max-w-4xl mx-auto space-y-12">
+          {/* Header */}
+          <section className="text-center space-y-4">
+            <h1 className="text-5xl md:text-7xl font-display font-black leading-none uppercase italic">
+              Digital Document <span className="text-primary">Intelligence.</span>
+            </h1>
+            <p className="text-gray-400 font-medium max-w-2xl mx-auto text-sm md:text-base">
+              Strip away the noise. Extract structured truth from unstructured PDFs using layout-aware neural parsing.
+            </p>
+          </section>
+          {/* Uploader Section */}
+          <section className="space-y-6">
+            <PDFUploader />
+            {error && (
+              <div className="p-4 border border-red-500/50 bg-red-500/10 flex items-center gap-3">
+                <ShieldInfo className="w-5 h-5 text-red-500" />
+                <span className="text-xs font-mono text-red-400 uppercase tracking-tight">{error}</span>
               </div>
-              <div className="w-full space-y-4 text-left font-mono text-xs text-gray-500 border-l border-lime-accent/30 pl-4 py-2">
-                <p>1. Capture visual data</p>
-                <p>2. Cloud AI decomposition</p>
-                <p>3. Market integrity report</p>
-              </div>
-              <button
-                onClick={() => setScreen('capture')}
-                className="w-full py-4 bg-lime-accent text-black font-condensed text-xl font-black hover:scale-105 transition-transform active:scale-95"
-              >
-                INITIATE ANALYSIS
-              </button>
-            </motion.div>
-          )}
-          {screen === 'capture' && (
-            <motion.div key="capture" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1">
-              <AdScanner onCapture={handleCapture} onBack={() => setScreen('splash')} />
-            </motion.div>
-          )}
-          {screen === 'processing' && (
-            <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center p-8 space-y-12">
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="absolute inset-0 border-2 border-lime-accent/20 rounded-full animate-ping" />
-                <div className="absolute inset-2 border-2 border-lime-accent rounded-full animate-spin-slow" />
-                <Activity className="w-10 h-10 text-lime-accent" />
-              </div>
-              <div className="w-full space-y-6">
-                <div className="text-center">
-                  <h3 className="font-condensed text-2xl font-bold animate-pulse text-lime-accent">ANALYZING TARGET</h3>
-                </div>
-                <div className="space-y-3 font-mono text-[10px] uppercase tracking-widest text-gray-500">
-                  {steps.map((s, i) => (
-                    <div key={i} className={`flex items-center gap-3 ${i === step ? 'text-white' : i < step ? 'text-lime-accent' : ''}`}>
-                      {i < step ? '✓' : i === step ? '���' : '○'} {s}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-          {screen === 'results' && results && (
-            <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex-1 overflow-y-auto no-scrollbar pb-24 p-6">
-              <div className="flex items-center justify-between mb-8">
-                <button onClick={() => setScreen('splash')} className="p-2 bg-[#1a1a1a] border border-[#333]"><ArrowLeft className="w-4 h-4" /></button>
-                <h3 className="font-condensed text-xl font-bold">X-RAY REPORT</h3>
-                <div className="w-8" />
-              </div>
-              <div className="aspect-video w-full bg-dark-surface border border-[#333] mb-8 overflow-hidden">
-                <img src={`data:image/jpeg;base64,${imageB64}`} className="w-full h-full object-contain grayscale brightness-75" alt="Scan" />
-              </div>
-              <AnalysisResult data={results} />
-              <button
-                onClick={() => setScreen('capture')}
-                className="w-full mt-12 py-4 bg-white text-black font-condensed text-xl font-black"
-              >
-                NEW SCAN
-              </button>
-            </motion.div>
-          )}
-          {screen === 'error' && (
-            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
-              <div className="w-16 h-16 border-2 border-red-500 flex items-center justify-center text-red-500 mb-4">
-                <Activity className="w-8 h-8" />
-              </div>
-              <h3 className="text-2xl font-condensed font-black">ANALYSIS FAILED</h3>
-              <p className="text-gray-500 text-sm max-w-[240px]">We couldn't reach the intelligence server. Check your connection.</p>
-              <button
-                onClick={() => setScreen('capture')}
-                className="px-8 py-3 bg-[#1a1a1a] border border-[#333] text-sm font-bold"
-              >
-                RETRY SCAN
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </section>
+          {/* Results Section */}
+          <section>
+            <ExtractionPreview />
+          </section>
+        </div>
       </main>
-      <Toaster position="top-center" theme="dark" />
+      {/* Footer Meta */}
+      <footer className="fixed bottom-0 left-0 right-0 p-4 flex justify-between items-center bg-[#0a0a0a] border-t border-[#111] pointer-events-none">
+        <div className="flex items-center gap-2 opacity-30">
+          <Terminal className="w-3 h-3" />
+          <span className="font-mono text-[8px] uppercase tracking-widest">Protocol: X-RAY_INTEL_v5.0</span>
+        </div>
+        <div className="flex items-center gap-2 opacity-30">
+          <span className="font-mono text-[8px] uppercase tracking-widest text-primary">System Online</span>
+          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+        </div>
+      </footer>
+      <Toaster position="top-right" theme="dark" richColors />
     </div>
   );
 }
