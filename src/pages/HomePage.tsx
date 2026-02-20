@@ -1,21 +1,41 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AdScanner } from '@/components/AdScanner';
 import { AnalysisResult } from '@/components/AnalysisResult';
 import { Toaster, toast } from '@/components/ui/sonner';
 import { AdAnalysis } from '@/lib/ad-utils';
-import { Scan, ShieldAlert, Loader2, ArrowLeft, Info, Activity } from 'lucide-react';
+import { Activity, ArrowLeft, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useHistoryStore, ScanRecord } from '@/lib/history-store';
 type ScreenState = 'splash' | 'capture' | 'processing' | 'results' | 'error';
 export function HomePage() {
   const [screen, setScreen] = useState<ScreenState>('splash');
   const [imageB64, setImageB64] = useState<string | null>(null);
   const [results, setResults] = useState<AdAnalysis | null>(null);
   const [step, setStep] = useState(0);
-  const steps = ["Decrypting visual stream...", "Identifying product footprint...", "Cross-referencing market data...", "Evaluating competitor threats...", "Finalizing verdict..."];
+  const location = useLocation();
+  const navigate = useNavigate();
+  const addScan = useHistoryStore(s => s.addScan);
+  const steps = [
+    "Decrypting visual stream...", 
+    "Identifying product footprint...", 
+    "Cross-referencing market data...", 
+    "Evaluating competitor threats...", 
+    "Finalizing verdict..."
+  ];
+  useEffect(() => {
+    const state = location.state as { selectedScan?: ScanRecord };
+    if (state?.selectedScan) {
+      setImageB64(state.selectedScan.imagePreview.replace('data:image/jpeg;base64,', ''));
+      setResults(state.selectedScan.analysis);
+      setScreen('results');
+      // Clear state so it doesn't re-trigger on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
   const handleCapture = async (b64: string) => {
     setImageB64(b64);
     setScreen('processing');
-    // Simulate progression for UX
     const timer = setInterval(() => {
       setStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
     }, 800);
@@ -28,6 +48,11 @@ export function HomePage() {
       const res = await response.json();
       if (res.success) {
         setResults(res.data);
+        addScan({
+          imagePreview: `data:image/jpeg;base64,${b64}`,
+          analysis: res.data,
+          extractedText: "" // Text extraction is handled server-side now
+        });
         setTimeout(() => {
           clearInterval(timer);
           setScreen('results');
@@ -43,20 +68,24 @@ export function HomePage() {
   };
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-lime-accent selection:text-black overflow-hidden flex flex-col items-center">
-      {/* Top Nav */}
       <nav className="w-full max-w-[430px] p-6 flex justify-between items-center z-50">
         <div className="flex items-center gap-1 font-condensed text-2xl font-black">
           AD<span className="text-lime-accent">X</span>RAY
         </div>
         <div className="flex gap-2">
-          <div className="bg-[#1a1a1a] px-2 py-0.5 text-[10px] font-bold border border-[#333] tracking-wider text-lime-accent">BETA</div>
-          <div className="bg-[#1a1a1a] px-2 py-0.5 text-[10px] font-bold border border-[#333] tracking-wider text-gray-500">v3.0</div>
+          <button 
+            onClick={() => navigate('/history')}
+            className="bg-[#1a1a1a] p-2 border border-[#333] hover:border-lime-accent transition-colors"
+          >
+            <Archive className="w-4 h-4 text-lime-accent" />
+          </button>
+          <div className="bg-[#1a1a1a] px-2 py-0.5 text-[10px] font-bold border border-[#333] flex items-center text-gray-500 uppercase">v3.0</div>
         </div>
       </nav>
       <main className="w-full max-w-[430px] flex-1 relative flex flex-col">
         <AnimatePresence mode="wait">
           {screen === 'splash' && (
-            <motion.div 
+            <motion.div
               key="splash"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="flex-1 flex flex-col p-8 justify-center items-center text-center space-y-12"
@@ -70,7 +99,7 @@ export function HomePage() {
                 <p>2. Cloud AI decomposition</p>
                 <p>3. Market integrity report</p>
               </div>
-              <button 
+              <button
                 onClick={() => setScreen('capture')}
                 className="w-full py-4 bg-lime-accent text-black font-condensed text-xl font-black hover:scale-105 transition-transform active:scale-95"
               >
@@ -97,7 +126,7 @@ export function HomePage() {
                 <div className="space-y-3 font-mono text-[10px] uppercase tracking-widest text-gray-500">
                   {steps.map((s, i) => (
                     <div key={i} className={`flex items-center gap-3 ${i === step ? 'text-white' : i < step ? 'text-lime-accent' : ''}`}>
-                      {i < step ? '✓' : i === step ? '▶' : '○'} {s}
+                      {i < step ? '✓' : i === step ? '���' : '○'} {s}
                     </div>
                   ))}
                 </div>
@@ -107,7 +136,7 @@ export function HomePage() {
           {screen === 'results' && results && (
             <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex-1 overflow-y-auto no-scrollbar pb-24 p-6">
               <div className="flex items-center justify-between mb-8">
-                <button onClick={() => setScreen('capture')} className="p-2 bg-[#1a1a1a] border border-[#333]"><ArrowLeft className="w-4 h-4" /></button>
+                <button onClick={() => setScreen('splash')} className="p-2 bg-[#1a1a1a] border border-[#333]"><ArrowLeft className="w-4 h-4" /></button>
                 <h3 className="font-condensed text-xl font-bold">X-RAY REPORT</h3>
                 <div className="w-8" />
               </div>
@@ -115,11 +144,26 @@ export function HomePage() {
                 <img src={`data:image/jpeg;base64,${imageB64}`} className="w-full h-full object-contain grayscale brightness-75" alt="Scan" />
               </div>
               <AnalysisResult data={results} />
-              <button 
+              <button
                 onClick={() => setScreen('capture')}
                 className="w-full mt-12 py-4 bg-white text-black font-condensed text-xl font-black"
               >
                 NEW SCAN
+              </button>
+            </motion.div>
+          )}
+          {screen === 'error' && (
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+              <div className="w-16 h-16 border-2 border-red-500 flex items-center justify-center text-red-500 mb-4">
+                <Activity className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-condensed font-black">ANALYSIS FAILED</h3>
+              <p className="text-gray-500 text-sm max-w-[240px]">We couldn't reach the intelligence server. Check your connection.</p>
+              <button
+                onClick={() => setScreen('capture')}
+                className="px-8 py-3 bg-[#1a1a1a] border border-[#333] text-sm font-bold"
+              >
+                RETRY SCAN
               </button>
             </motion.div>
           )}
