@@ -12,6 +12,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
+import { HistoryPage } from '@/pages/HistoryPage'
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -25,6 +26,11 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <HomePage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/history",
+    element: <HistoryPage />,
     errorElement: <RouteErrorBoundary />,
   }
 ]);

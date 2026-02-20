@@ -9,6 +9,7 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [hasCamera, setHasCamera] = useState(true);
   useEffect(() => {
+    const currentVideo = videoRef.current;
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -22,8 +23,10 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
     }
     startCamera();
     return () => {
-      const stream = videoRef.current?.srcObject as MediaStream;
-      stream?.getTracks().forEach(track => track.stop());
+      if (currentVideo) {
+        const stream = currentVideo.srcObject as MediaStream;
+        stream?.getTracks().forEach(track => track.stop());
+      }
     };
   }, [facingMode]);
   const captureFrame = () => {
