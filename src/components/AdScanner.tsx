@@ -33,24 +33,32 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
   const captureFrame = async () => {
     const video = videoRef.current;
     if (!video) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d')?.drawImage(video, 0, 0);
-    const rawB64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-    const optimizedB64 = await resizeImage(rawB64);
-    onCapture(optimizedB64);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d')?.drawImage(video, 0, 0);
+      const rawB64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+      const optimizedB64 = await resizeImage(rawB64);
+      onCapture(optimizedB64);
+    } catch (err: any) {
+      setError(err.message || 'CAPTURE_FAILED');
+    }
   };
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const rawB64 = (reader.result as string).split(',')[1];
-      const optimizedB64 = await resizeImage(rawB64);
-      onCapture(optimizedB64);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const rawB64 = (reader.result as string).split(',')[1];
+        const optimizedB64 = await resizeImage(rawB64);
+        onCapture(optimizedB64);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setError(err.message || 'FILE_UPLOAD_FAILED');
+    }
   };
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">

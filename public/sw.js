@@ -2,9 +2,7 @@ const CACHE_NAME = 'adxray-v1';
 const ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/src/main.tsx',
-  '/src/index.css'
+  '/manifest.json'
 ];
 // Install: Cache core shell assets
 self.addEventListener('install', (event) => {
