@@ -7,35 +7,31 @@ interface HistoryCardProps {
   onClick: (scan: ScanRecord) => void;
 }
 export function HistoryCard({ scan, onClick }: HistoryCardProps) {
+  // Random rotation between -2 and 2 degrees for that "scattered photos" look
+  const rotation = React.useMemo(() => (Math.random() * 4 - 2), []);
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, borderColor: '#c8f135' }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1, rotate: rotation }}
+      whileHover={{ scale: 1.05, rotate: 0, zIndex: 10 }}
       onClick={() => onClick(scan)}
-      className="cursor-pointer bg-[#111] p-2 border-2 border-[#222] transition-colors relative group"
+      className="cursor-pointer bg-[#FDFBF7] p-3 pb-10 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group"
     >
-      <div className="aspect-square w-full bg-[#0a0a0a] border border-[#222] overflow-hidden relative">
-        <img
-          src={scan.imagePreview}
-          alt="Ad Scan"
-          className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+      <div className="aspect-square w-full bg-gray-200 border border-black/10 overflow-hidden relative">
+        <img 
+          src={scan.imagePreview} 
+          alt="Ad Scan" 
+          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" 
         />
-        <div className="absolute inset-0 bg-lime-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
       </div>
-      <div className="mt-3 flex justify-between items-center px-1">
-        <span className="font-condensed text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+      <div className="absolute bottom-2 left-0 right-0 text-center">
+        <span className="font-sketch text-sm font-bold opacity-70">
           {format(scan.timestamp, 'MMM d, HH:mm')}
         </span>
-        <div className="w-1 h-1 bg-lime-accent" />
       </div>
-      <div className="mt-1 px-1">
-        <p className="font-condensed text-xs font-black truncate text-white uppercase tracking-tighter">
-          {scan.analysis.detected.productName}
-        </p>
-      </div>
-      {/* Cyber Corner Decor */}
-      <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-lime-accent/0 group-hover:border-lime-accent/50 transition-colors" />
+      {/* Tape effect */}
+      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-10 h-4 bg-white/60 border border-black/5 -rotate-2" />
     </motion.div>
   );
 }
