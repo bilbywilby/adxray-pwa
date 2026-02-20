@@ -1,29 +1,22 @@
-export async function resizeImage(file: File, maxWidth = 1024): Promise<string> {
+export async function resizeImage(base64Str: string, maxWidth = 1024): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > maxWidth) {
-          height = (maxWidth / width) * height;
-          width = maxWidth;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        // Return base64 without the data:image/jpeg;base64, prefix for easier worker handling
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        resolve(dataUrl.split(',')[1]);
-      };
-      img.onerror = reject;
-      img.src = e.target?.result as string;
+    const img = new Image();
+    img.src = `data:image/jpeg;base64,${base64Str}`;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      if (width > maxWidth) {
+        height = (maxWidth / width) * height;
+        width = maxWidth;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
     };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    img.onerror = reject;
   });
 }
 export interface AdAnalysis {
@@ -47,26 +40,10 @@ export interface AdAnalysis {
     verdictText: string;
   };
 }
-export function parseAnalysisResponse(content: string): AdAnalysis {
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-    throw new Error("No JSON found in response");
-  } catch (e) {
-    console.error("Parse Error:", e);
-    // Return a structured empty state instead of crashing
-    return {
-      detected: { productName: "Unknown", company: "Unknown", category: "Unidentified", emoji: "❓", confidence: 0 },
-      whyThisAd: { summary: "Analysis failed to parse properly.", insights: [], tactics: [] },
-      marketComparison: { 
-        advertised: { name: "N/A", price: "N/A", quality: "N/A", deal: "N/A" },
-        alternatives: [],
-        verdict: 'ok',
-        verdictTitle: "UNCERTAIN",
-        verdictText: "Try a clearer scan."
-      }
-    };
+export function getVerdictColor(verdict: 'bad' | 'ok' | 'good') {
+  switch (verdict) {
+    case 'bad': return 'border-red-500 shadow-red-500/50 text-red-500';
+    case 'good': return 'border-lime-accent shadow-lime-accent/50 text-lime-accent';
+    default: return 'border-yellow-500 shadow-yellow-500/50 text-yellow-500';
   }
 }
