@@ -1,10 +1,10 @@
 import React from 'react';
-import { useHistoryStore } from '@/lib/history-store';
+import { useHistoryStore, ExtractionRecord } from '@/lib/history-store';
+import { useExtractionStore } from '@/lib/extraction-store';
 import { HistoryCard } from '@/components/HistoryCard';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, Camera, ShieldAlert } from 'lucide-react';
-import { ScanRecord } from '@/lib/history-store';
+import { ArrowLeft, Trash2, FileSearch, ShieldAlert } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,71 +17,85 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 export function HistoryPage() {
-  const scans = useHistoryStore(s => s.scans);
+  const records = useHistoryStore(s => s.records);
   const clearHistory = useHistoryStore(s => s.clearHistory);
+  const setResults = useExtractionStore(s => s.setResults);
+  const setFile = useExtractionStore(s => s.setFile);
   const navigate = useNavigate();
-  const handleViewDetails = (scan: ScanRecord) => {
-    navigate('/', { state: { selectedScan: scan } });
+  const handleViewDetails = (record: ExtractionRecord) => {
+    // Populate store from history to show the preview
+    setFile(record.fileName);
+    setResults(record.rawText, record.structuredData);
+    navigate('/');
   };
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-lime-accent selection:text-black">
-      <div className="max-w-[430px] mx-auto px-6 py-8 flex flex-col h-full">
-        <header className="flex justify-between items-center mb-10">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-primary selection:text-black">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex flex-col min-h-screen">
+        <header className="flex justify-between items-center mb-12">
+          <div className="flex items-center gap-6">
             <Link to="/">
-              <div className="p-2 border border-[#222] bg-[#111] hover:border-lime-accent transition-colors">
-                <ArrowLeft className="h-4 w-4" />
+              <div className="p-3 border border-[#222] bg-[#111] hover:border-primary transition-all hover:shadow-[0_0_10px_rgba(200,241,53,0.2)]">
+                <ArrowLeft className="h-5 w-5" />
               </div>
             </Link>
             <div>
-              <h1 className="text-2xl font-condensed font-black uppercase italic leading-none">THE VAULT</h1>
-              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Archive Log v1.0</p>
+              <h1 className="text-4xl font-display font-black uppercase italic leading-none">THE VAULT</h1>
+              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Neural Archive Log v1.0</p>
             </div>
           </div>
-          {scans.length > 0 && (
+          {records.length > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-red-500 hover:bg-red-500/10 rounded-none border border-transparent hover:border-red-500/20">
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="ghost" className="text-red-500 hover:bg-red-500/10 rounded-none border border-[#222] hover:border-red-500/50 h-12 px-6">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span className="font-display font-bold uppercase tracking-tight">Wipe Database</span>
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="bg-[#0a0a0a] border-2 border-[#222] rounded-none">
+              <AlertDialogContent className="bg-[#0a0a0a] border-2 border-red-900/50 rounded-none">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="font-condensed text-2xl font-black text-white uppercase italic">TERMINATE ARCHIVE?</AlertDialogTitle>
+                  <AlertDialogTitle className="font-display text-3xl font-black text-white uppercase italic">TERMINATE ARCHIVE?</AlertDialogTitle>
                   <AlertDialogDescription className="text-gray-400 font-medium">
-                    This will permanently delete all captured intelligence. This action is irreversible.
+                    This will permanently delete all extracted intelligence records. This action is irreversible and the matrix cannot be recovered.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="mt-6">
-                  <AlertDialogCancel className="bg-transparent border border-[#222] text-white rounded-none font-mono uppercase text-xs">ABORT</AlertDialogCancel>
-                  <AlertDialogAction onClick={clearHistory} className="bg-red-600 hover:bg-red-700 text-white rounded-none font-mono uppercase text-xs">CONFIRM DELETION</AlertDialogAction>
+                <AlertDialogFooter className="mt-8">
+                  <AlertDialogCancel className="bg-transparent border border-[#222] text-white rounded-none font-mono uppercase text-xs hover:bg-[#111]">ABORT_MISSION</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearHistory} className="bg-red-600 hover:bg-red-700 text-white rounded-none font-mono uppercase text-xs">CONFIRM_PURGE</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
         </header>
         <main className="flex-1">
-          {scans.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-[#222] bg-[#111]/30">
-              <ShieldAlert size={48} className="text-[#333] mb-4" />
-              <h2 className="text-xl font-condensed font-black uppercase mb-1">NO DATA LOGGED</h2>
-              <p className="text-xs text-gray-500 uppercase tracking-tight mb-8 font-mono max-w-[200px]">Initial scan required to populate historical database.</p>
+          {records.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-[#1a1a1a] bg-[#0d0d0d]/50">
+              <div className="relative mb-8">
+                <FileSearch size={64} className="text-[#222]" />
+                <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full" />
+              </div>
+              <h2 className="text-3xl font-display font-black uppercase italic mb-2">DATABASE EMPTY</h2>
+              <p className="text-xs text-gray-600 uppercase tracking-widest mb-10 font-mono max-w-sm">No document intelligence detected. Please initiate scanning protocol from home terminal.</p>
               <Link to="/">
-                <Button className="bg-lime-accent text-black hover:scale-105 transition-transform font-condensed font-black text-lg px-8 py-6 h-auto rounded-none">
-                  START SCAN
+                <Button className="bg-primary text-black hover:scale-105 transition-all font-display font-black text-xl px-12 py-8 h-auto rounded-none shadow-[0_0_20px_rgba(200,241,53,0.3)]">
+                  INITIALIZE SCAN
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {scans.map((scan) => (
-                <HistoryCard key={scan.id} scan={scan} onClick={handleViewDetails} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {records.map((record) => (
+                <HistoryCard key={record.id} record={record} onClick={handleViewDetails} />
               ))}
             </div>
           )}
         </main>
-        <footer className="mt-12 py-6 border-t border-[#222] text-center">
-          <p className="text-[9px] font-mono text-gray-600 uppercase tracking-[0.2em]">ADXRAY SECURITY PROTOCOL ENABLED</p>
+        <footer className="mt-20 py-8 border-t border-[#111] flex justify-between items-center opacity-40">
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em]">ADXRAY_VAULT_ENCRYPTION_v5.0</p>
+          <div className="flex gap-4">
+             <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+             <div className="w-2 h-2 bg-primary rounded-full" />
+             <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+          </div>
         </footer>
       </div>
     </div>

@@ -1,40 +1,40 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { AdAnalysis } from './ad-utils';
-export interface ScanRecord {
+export interface ExtractionRecord {
   id: string;
   timestamp: number;
-  imagePreview: string;
-  analysis: AdAnalysis;
-  extractedText: string;
+  fileName: string;
+  fileSize?: number;
+  rawText: string;
+  structuredData: Record<string, any>;
 }
 interface HistoryState {
-  scans: ScanRecord[];
-  addScan: (scan: Omit<ScanRecord, 'id' | 'timestamp'>) => void;
-  removeScan: (id: string) => void;
+  records: ExtractionRecord[];
+  addRecord: (record: Omit<ExtractionRecord, 'id' | 'timestamp'>) => void;
+  removeRecord: (id: string) => void;
   clearHistory: () => void;
 }
 export const useHistoryStore = create<HistoryState>()(
   persist(
     (set) => ({
-      scans: [],
-      addScan: (scan) => set((state) => ({
-        scans: [
+      records: [],
+      addRecord: (record) => set((state) => ({
+        records: [
           {
-            ...scan,
+            ...record,
             id: crypto.randomUUID(),
             timestamp: Date.now(),
           },
-          ...state.scans,
+          ...state.records,
         ],
       })),
-      removeScan: (id) => set((state) => ({
-        scans: state.scans.filter((s) => s.id !== id),
+      removeRecord: (id) => set((state) => ({
+        records: state.records.filter((r) => r.id !== id),
       })),
-      clearHistory: () => set({ scans: [] }),
+      clearHistory: () => set({ records: [] }),
     }),
     {
-      name: 'adxray-vault',
+      name: 'doc-xray-vault',
       storage: createJSONStorage(() => localStorage),
     }
   )
