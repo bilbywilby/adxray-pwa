@@ -4,7 +4,8 @@ import { useExtractionStore } from '@/lib/extraction-store';
 import { HistoryCard } from '@/components/HistoryCard';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, FileSearch, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Trash2, FileSearch } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,24 +24,18 @@ export function HistoryPage() {
   const setFile = useExtractionStore(s => s.setFile);
   const navigate = useNavigate();
   const handleViewDetails = (record: ExtractionRecord) => {
-    // Populate store from history to show the preview
     setFile(record.fileName);
     setResults(record.rawText, record.structuredData);
     navigate('/');
   };
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-primary selection:text-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex flex-col min-h-screen">
+    <AppLayout container className="bg-background min-h-screen">
+      <div className="flex flex-col min-h-[calc(100vh-8rem)]">
         <header className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-6">
-            <Link to="/">
-              <div className="p-3 border border-[#222] bg-[#111] hover:border-primary transition-all hover:shadow-[0_0_10px_rgba(200,241,53,0.2)]">
-                <ArrowLeft className="h-5 w-5" />
-              </div>
-            </Link>
             <div>
               <h1 className="text-4xl font-display font-black uppercase italic leading-none">THE VAULT</h1>
-              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Neural Archive Log v1.0</p>
+              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Neural Archive Log v5.0</p>
             </div>
           </div>
           {records.length > 0 && (
@@ -90,7 +85,7 @@ export function HistoryPage() {
           )}
         </main>
         <footer className="mt-20 py-8 border-t border-[#111] flex justify-between items-center opacity-40">
-          <p className="text-[10px] font-mono uppercase tracking-[0.2em]">ADXRAY_VAULT_ENCRYPTION_v5.0</p>
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em]">DOCXRAY_VAULT_ENCRYPTION_v5.0</p>
           <div className="flex gap-4">
              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
              <div className="w-2 h-2 bg-primary rounded-full" />
@@ -98,6 +93,6 @@ export function HistoryPage() {
           </div>
         </footer>
       </div>
-    </div>
+    </AppLayout>
   );
 }
