@@ -1,130 +1,131 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { AdScanner } from '@/components/AdScanner';
 import { AnalysisResult } from '@/components/AnalysisResult';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toaster, toast } from '@/components/ui/sonner';
-import { AD_ANALYST_PROMPT } from '@/lib/agent-prompts';
-import { chatService } from '@/lib/chat';
-import { parseAnalysisResponse, AdAnalysis } from '@/lib/ad-utils';
-import { ScanSearch, RefreshCw, Archive } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useHistoryStore } from '@/lib/history-store';
-import { Link, useLocation } from 'react-router-dom';
-
+import { AdAnalysis } from '@/lib/ad-utils';
+import { Scan, ShieldAlert, Loader2, ArrowLeft, Info, Activity } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+type ScreenState = 'splash' | 'capture' | 'processing' | 'results' | 'error';
 export function HomePage() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<AdAnalysis | null>(null);
-  const [currentImage, setCurrentImage] = useState<string | null>(null);
-  const addScan = useHistoryStore(s => s.addScan);
-  const location = useLocation();
-
-  useEffect(() => {
-    if (location.state?.selectedScan) {
-      setResult(location.state.selectedScan.analysis);
-      setCurrentImage(location.state.selectedScan.imagePreview);
-    }
-  }, [location.state]);
-
-  const handleScanComplete = async (text: string, imagePreview: string) => {
-    if (!text.trim()) {
-      toast.error("No text found in ad. Try a clearer shot!");
-      return;
-    }
-    setIsAnalyzing(true);
-    setCurrentImage(imagePreview);
+  const [screen, setScreen] = useState<ScreenState>('splash');
+  const [imageB64, setImageB64] = useState<string | null>(null);
+  const [results, setResults] = useState<AdAnalysis | null>(null);
+  const [step, setStep] = useState(0);
+  const steps = ["Decrypting visual stream...", "Identifying product footprint...", "Cross-referencing market data...", "Evaluating competitor threats...", "Finalizing verdict..."];
+  const handleCapture = async (b64: string) => {
+    setImageB64(b64);
+    setScreen('processing');
+    // Simulate progression for UX
+    const timer = setInterval(() => {
+      setStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
+    }, 800);
     try {
-      // Start a fresh session for the analyst
-      chatService.newSession();
-      const prompt = `${AD_ANALYST_PROMPT}\n\nHere is the extracted text from the advertisement:\n"${text}"\n\nAnalyze it now.`;
-      const response = await chatService.sendMessage(prompt);
-      if (response.success && response.data?.messages) {
-        const lastMessage = response.data.messages[response.data.messages.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant') {
-          const parsed = parseAnalysisResponse(lastMessage.content);
-          setResult(parsed);
-          addScan({
-            analysis: parsed,
-            extractedText: text,
-            imagePreview: imagePreview
-          });
-          toast.success("Analysis complete!");
-        }
+      const response = await fetch('/api/ad-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageB64: b64 })
+      });
+      const res = await response.json();
+      if (res.success) {
+        setResults(res.data);
+        setTimeout(() => {
+          clearInterval(timer);
+          setScreen('results');
+        }, 1200);
       } else {
-        throw new Error(response.error || "Analysis failed");
+        throw new Error(res.error);
       }
     } catch (err) {
-      console.error(err);
-      toast.error("Agent went dark. Check your connection.");
-    } finally {
-      setIsAnalyzing(false);
+      clearInterval(timer);
+      setScreen('error');
+      toast.error("Analysis failed. Signal lost.");
     }
   };
-  const reset = () => {
-    setResult(null);
-    setIsScanning(false);
-    setIsAnalyzing(false);
-  };
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-black selection:bg-[#FFD23F] font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="py-8 md:py-10 lg:py-12">
-          <header className="flex flex-col items-center mb-12 text-center">
-            <div className="relative">
-              <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter italic border-b-8 border-black leading-[0.8] mb-2">
-                AdXRay
-              </h1>
-              <div className="absolute -right-4 -top-4 bg-primary text-white text-xs font-bold px-2 py-1 rotate-12 uppercase">
-                v1.0 Beta
-              </div>
-            </div>
-            <p className="mt-4 text-xl font-bold uppercase tracking-widest text-gray-600">
-              The Truth Behind the Hype
-            </p>
-          </header>
-          <main className="relative flex flex-col items-center">
-            <Link to="/history" className="absolute -top-16 right-0 md:right-0">
-              <Button variant="outline" className="border-2 border-black shadow-hard-sm uppercase font-bold hover:translate-y-0.5 transition-all">
-                <Archive className="mr-2 h-4 w-4" /> Vault
-              </Button>
-            </Link>
-            {!result ? (
-              <>
-                <div className="mb-8 w-full">
-                  <AdScanner onScanComplete={(text) => handleScanComplete(text, currentImage || '')} isScanning={isAnalyzing} onImageCapture={(img) => setCurrentImage(img)} />
-                </div>
-                {isAnalyzing && (
-                  <div className="mt-8 flex flex-col items-center animate-pulse">
-                    <ScanSearch className="w-12 h-12 mb-2" />
-                    <p className="font-bold uppercase tracking-widest text-sm">Consulting the Expert...</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex justify-between items-center max-w-xl mx-auto mb-4">
-                   <h2 className="text-2xl font-black uppercase">Report #001</h2>
-                   <Button variant="ghost" size="sm" onClick={reset} className="font-bold uppercase border-2 border-black">
-                     <RefreshCw className="mr-2 h-4 w-4" /> New Scan
-                   </Button>
-                </div>
-                <AnalysisResult data={result} />
-              </div>
-            )}
-          </main>
-          <footer className="mt-20 border-t-2 border-black pt-8 flex flex-col items-center gap-4 text-center">
-             <div className="bg-black text-white p-4 max-w-md">
-                <p className="text-xs font-mono uppercase leading-tight">
-                  NOTICE: AdXRay analysis is generated by AI. Use common sense. Not financial advice. 
-                  Limit on AI requests across all apps applies.
-                </p>
-             </div>
-             <p className="text-sm font-bold uppercase">© 2024 ADXRAY BUREAU OF TRUTH</p>
-          </footer>
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-lime-accent selection:text-black overflow-hidden flex flex-col items-center">
+      {/* Top Nav */}
+      <nav className="w-full max-w-[430px] p-6 flex justify-between items-center z-50">
+        <div className="flex items-center gap-1 font-condensed text-2xl font-black">
+          AD<span className="text-lime-accent">X</span>RAY
         </div>
-      </div>
-      <ThemeToggle className="fixed bottom-4 right-4" />
-      <Toaster richColors position="top-center" />
+        <div className="flex gap-2">
+          <div className="bg-[#1a1a1a] px-2 py-0.5 text-[10px] font-bold border border-[#333] tracking-wider text-lime-accent">BETA</div>
+          <div className="bg-[#1a1a1a] px-2 py-0.5 text-[10px] font-bold border border-[#333] tracking-wider text-gray-500">v3.0</div>
+        </div>
+      </nav>
+      <main className="w-full max-w-[430px] flex-1 relative flex flex-col">
+        <AnimatePresence mode="wait">
+          {screen === 'splash' && (
+            <motion.div 
+              key="splash"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col p-8 justify-center items-center text-center space-y-12"
+            >
+              <div className="space-y-4">
+                <h2 className="text-5xl font-condensed font-black leading-none">SEE THROUGH EVERY AD.</h2>
+                <p className="text-gray-400 font-medium max-w-[280px]">The truth is hidden in the pixels. Reveal predatory marketing with one scan.</p>
+              </div>
+              <div className="w-full space-y-4 text-left font-mono text-xs text-gray-500 border-l border-lime-accent/30 pl-4 py-2">
+                <p>1. Capture visual data</p>
+                <p>2. Cloud AI decomposition</p>
+                <p>3. Market integrity report</p>
+              </div>
+              <button 
+                onClick={() => setScreen('capture')}
+                className="w-full py-4 bg-lime-accent text-black font-condensed text-xl font-black hover:scale-105 transition-transform active:scale-95"
+              >
+                INITIATE ANALYSIS
+              </button>
+            </motion.div>
+          )}
+          {screen === 'capture' && (
+            <motion.div key="capture" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1">
+              <AdScanner onCapture={handleCapture} onBack={() => setScreen('splash')} />
+            </motion.div>
+          )}
+          {screen === 'processing' && (
+            <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center p-8 space-y-12">
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                <div className="absolute inset-0 border-2 border-lime-accent/20 rounded-full animate-ping" />
+                <div className="absolute inset-2 border-2 border-lime-accent rounded-full animate-spin-slow" />
+                <Activity className="w-10 h-10 text-lime-accent" />
+              </div>
+              <div className="w-full space-y-6">
+                <div className="text-center">
+                  <h3 className="font-condensed text-2xl font-bold animate-pulse text-lime-accent">ANALYZING TARGET</h3>
+                </div>
+                <div className="space-y-3 font-mono text-[10px] uppercase tracking-widest text-gray-500">
+                  {steps.map((s, i) => (
+                    <div key={i} className={`flex items-center gap-3 ${i === step ? 'text-white' : i < step ? 'text-lime-accent' : ''}`}>
+                      {i < step ? '✓' : i === step ? '▶' : '○'} {s}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+          {screen === 'results' && results && (
+            <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex-1 overflow-y-auto no-scrollbar pb-24 p-6">
+              <div className="flex items-center justify-between mb-8">
+                <button onClick={() => setScreen('capture')} className="p-2 bg-[#1a1a1a] border border-[#333]"><ArrowLeft className="w-4 h-4" /></button>
+                <h3 className="font-condensed text-xl font-bold">X-RAY REPORT</h3>
+                <div className="w-8" />
+              </div>
+              <div className="aspect-video w-full bg-dark-surface border border-[#333] mb-8 overflow-hidden">
+                <img src={`data:image/jpeg;base64,${imageB64}`} className="w-full h-full object-contain grayscale brightness-75" alt="Scan" />
+              </div>
+              <AnalysisResult data={results} />
+              <button 
+                onClick={() => setScreen('capture')}
+                className="w-full mt-12 py-4 bg-white text-black font-condensed text-xl font-black"
+              >
+                NEW SCAN
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+      <Toaster position="top-center" theme="dark" />
     </div>
   );
 }
