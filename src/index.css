@@ -47,8 +47,3 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
-@keyframes scan-line {
-  0% { opacity: 1; transform: translateY(-150%); }
-  100% { opacity: 0; transform: translateY(150%); }
-}

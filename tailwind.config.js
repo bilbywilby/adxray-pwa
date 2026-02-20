@@ -31,8 +31,8 @@ export default {
   				'50%': { opacity: '0' }
   			},
         scan: {
-          '0%': { transform: 'translateY(0)' },
-          '100%': { transform: 'translateY(400px)' }
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100%)' }
         }
   		}
   	}
