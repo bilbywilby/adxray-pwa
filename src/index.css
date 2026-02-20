@@ -31,7 +31,8 @@
     text-shadow: 0 0 10px rgba(200, 241, 53, 0.4);
   }
   .scan-ring {
-    @apply absolute rounded-full border-2 border-lime-accent/20;
+    @apply absolute rounded-full border-2;
+    border-color: hsl(var(--lime-accent) / 0.2);
     animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
   }
 }
