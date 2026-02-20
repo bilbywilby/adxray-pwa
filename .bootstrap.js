@@ -82,7 +82,8 @@ function runSetupCommands() {
     "bun add tesseract.js@^5.1.1",
     "bun install tesseract.js react-dropzone",
     "bun install lucide-react",
-    "bun install pdfjs-dist zod react-dropzone"
+    "bun install pdfjs-dist zod react-dropzone",
+    "bun install framer-motion lucide-react clsx tailwind-merge zustand"
 ];
     
     if (commands.length === 0) {
