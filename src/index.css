@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Barlow+Condensed:wght@100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,12 +9,17 @@
     --foreground: 0 0% 100%;
     --primary: 73 88% 58%;
     --primary-foreground: 0 0% 0%;
+    --lime-accent: 92 74% 55%;
   }
   body {
-    @apply bg-background text-foreground selection:bg-lime-accent selection:text-black;
+    @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+  }
+  body::selection {
+    background-color: hsl(var(--lime-accent));
+    color: black;
   }
 }
 @layer components {
@@ -38,4 +45,9 @@
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes scan-line {
+  0% { opacity: 1; transform: translateY(-150%); }
+  100% { opacity: 0; transform: translateY(150%); }
 }

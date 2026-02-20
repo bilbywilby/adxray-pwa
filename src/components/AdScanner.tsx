@@ -10,12 +10,19 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
   const [hasCamera, setHasCamera] = useState(true);
   useEffect(() => {
     const currentVideo = videoRef.current;
+    let cancelled = false;
+    let stream: MediaStream | null = null;
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1920 } }
         });
-        if (videoRef.current) videoRef.current.srcObject = stream;
+        if (!cancelled && videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current?.play();
+        } else if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
       } catch (err) {
         console.error("Camera Error:", err);
         setHasCamera(false);
@@ -23,15 +30,19 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
     }
     startCamera();
     return () => {
-      if (currentVideo) {
-        const stream = currentVideo.srcObject as MediaStream;
-        stream?.getTracks().forEach(track => track.stop());
+      cancelled = true;
+      if (videoRef.current?.srcObject) {
+        const currentStream = videoRef.current.srcObject as MediaStream;
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
     };
   }, [facingMode]);
   const captureFrame = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !video.videoWidth || !video.videoHeight || video.readyState !== 4) return;
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -62,8 +73,8 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
           <>
             <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
             <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-lime-accent/40 rounded-3xl" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-lime-accent/20 animate-scan-line" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-[hsl(var(--lime-accent)/0.4)] rounded-3xl" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-0.5 bg-[hsl(var(--lime-accent)/0.2)] animate-scan-line" />
             </div>
           </>
         ) : (
@@ -83,7 +94,7 @@ export function AdScanner({ onCapture, onBack }: AdScannerProps) {
           <ImageIcon className="text-white/50" />
         </label>
         <button onClick={captureFrame} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center active:scale-90 transition-transform">
-          <div className="w-16 h-16 rounded-full bg-lime-accent" />
+          <div className="w-16 h-16 rounded-full bg-[hsl(var(--lime-accent))]" />
         </button>
         <div className="w-6" />
       </div>
