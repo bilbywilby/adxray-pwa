@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 interface AdScannerProps {
   onScanComplete: (text: string) => void;
   isScanning: boolean;
+  onImageCapture?: (dataUrl: string) => void;
 }
 export function AdScanner({ onScanComplete, isScanning }: AdScannerProps) {
   const [preview, setPreview] = useState<string | null>(null);
@@ -17,6 +18,7 @@ export function AdScanner({ onScanComplete, isScanning }: AdScannerProps) {
     try {
       const resized = await resizeImage(file);
       setPreview(resized);
+      if (onImageCapture) onImageCapture(resized);
       const text = await extractTextFromImage(resized, (p) => setProgress(Math.round(p * 100)));
       onScanComplete(text);
     } catch (err) {

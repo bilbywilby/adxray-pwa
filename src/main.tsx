@@ -9,16 +9,19 @@ import {
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
-import '@/index.css'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
-
+import { HistoryPage } from '@/pages/HistoryPage'
 const queryClient = new QueryClient();
-
 const router = createBrowserRouter([
   {
     path: "/",
     element: <HomePage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/history",
+    element: <HistoryPage />,
     errorElement: <RouteErrorBoundary />,
   },
 ]);
