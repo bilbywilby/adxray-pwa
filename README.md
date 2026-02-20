@@ -1,6 +1,6 @@
 # Cloudflare AI Chat Agent Template
 
-[![Deploy to Cloudflare]([cloudflarebutton])](https://deploy.workers.cloudflare.com)
+[![Deploy to Cloudflare]([![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/adxray-pwa))](https://deploy.workers.cloudflare.com)
 
 A production-ready template for building AI-powered chat applications using Cloudflare Workers, Durable Objects, and Agents SDK. Features multi-session conversations, tool calling (web search, weather, MCP integration), Cloudflare AI Gateway integration, and a modern React frontend with shadcn/ui.
 
@@ -111,7 +111,7 @@ Extend by adding MCP servers in `worker/mcp-client.ts`.
    ```bash
    bun run deploy
    ```
-   Or use the button: [![Deploy to Cloudflare]([cloudflarebutton])](https://deploy.workers.cloudflare.com)
+   Or use the button: [![Deploy to Cloudflare]([![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/adxray-pwa))](https://deploy.workers.cloudflare.com)
 
 - Assets served as SPA (single-page application).
 - Durable Objects auto-migrate via `migrations`.
